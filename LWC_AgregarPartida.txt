@@ -1,0 +1,179 @@
+HTML--------------------------------------------------------------------------------------------------------------------------------
+
+<template>
+    <!-- Boton de agregar partida-->
+    <lightning-button 
+        variant="brand-outline" 
+        label="Agregar Partida" 
+        onclick={AgregarPartida_Click} 
+        class="slds-m-around_xx-large"
+        icon-name="utility:add"
+        icon-position="left">
+    </lightning-button>
+    <!--Popup--> 
+    <template if:true={isPopUpActivo}>
+        <section role="dialog" tabindex="-1" 
+            aria-labelledby="modal-heading-01" 
+            aria-modal="true" 
+            aria-describedby="modal-content-id-1" 
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header class="slds-modal__header">
+                    <button class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse" 
+                        title="Close" onclick={CerrarPopUp}>
+                        <lightning-icon icon-name="utility:close"
+                            alternative-text="close"
+                            variant="inverse"
+                            size="small" ></lightning-icon>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 id="modal-heading-01" class="slds-text-heading_medium slds-hyphenate">Agregar productos</h2>
+                </header>
+                <!-- Modal/Popup Box LWC body starts here -->
+                <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
+                    <div class="slds-p-around_medium lgc-bg">
+                        
+                        <lightning-input 
+                            type="text" 
+                            label="Ingresar código de producto" 
+                            placeholder="código de producto..." 
+                            onchange={CambioCodigo} 
+                            value={Busqueda}>
+                        </lightning-input>
+                        <button onclick={BuscarClick} class="slds-button slds-button_brand" title="Buscar">Buscar</button>
+                        <template if:true={isTablaLlena}>
+                            <lightning-datatable
+                                    key-field="ProductCode"
+                                    data={datosWraper}
+                                    columns={columnas}
+                                    suppress-bottom-bar=true
+                                    oncellchange={CambioCelda}>
+                            </lightning-datatable>
+                        </template>
+</div>
+</div>
+<!-- Modal/Popup Box LWC footer starts here -->
+<footer class="slds-modal__footer">
+    <button class="slds-button slds-button_neutral" onclick={CerrarPopUp} title="Cancelar">Cancelar</button>
+    <button class="slds-button slds-button_brand" title="Atras" onclick={LimpiarTabla}>Atras</button>
+    <button class="slds-button slds-button_brand" title="Guardar" onclick={BotonGuardar}>Guardar</button>
+</footer>
+</div>
+</section>
+<div class="slds-backdrop slds-backdrop_open"></div>
+</template>
+</template>
+JS------------------------------------------------------------------------------------------------------------------------------------
+import { LightningElement, api } from 'lwc';
+//Importar Clase "CrearPartida_Controlador.cls"
+import BuscarProducto from '@salesforce/apex/CrearPartida_Controlador.BuscarProducto'
+import GuardarController from '@salesforce/apex/CrearPartida_Controlador.Guardar'
+import { ShowToastEvent } from 'lightning/platformShowToastEvent'
+const columnas = [
+    { label: 'Nombre', fieldName: 'ProductName' },
+    { label: 'Valor Unidad', fieldName: 'UnitPrice', type: 'currency' },
+    { label: 'Cantidad', fieldName: 'Cantidad', editable: true, type: 'number' },
+    { label: 'Disponible', fieldName: 'Available' },
+];
+
+let CantidadTable = 0;
+
+export default class PartidaPresupuestoLWC extends LightningElement {
+
+    isPopUpActivo = false;
+    isTablaLlena = false;
+    Busqueda = '';
+    datosWraper = [];
+    columnas = columnas;
+    @api recordId;
+
+    AgregarPartida_Click() {
+        // to open modal set isModalOpen tarck value as true
+        this.isPopUpActivo = true;
+    }
+
+    CerrarPopUp() {
+        // to close modal set isModalOpen tarck value as false
+        this.isPopUpActivo = false;
+        this.Limpiar();
+    }
+
+    Limpiar() {
+        this.datosWraper = [];
+        this.Busqueda = '';
+        this.isTablaLlena = false;
+    }
+
+    CambioCodigo(event) {
+        this.Busqueda = event.detail.value;
+        //console.log('Texto Busqueda -->' + this.Busqueda);
+    }
+
+    BuscarClick(event) {
+        if (this.Busqueda === '') {
+            this.showToast('Error de búsqueda', 'Ingrese un código de producto', 'error');
+            this.Limpiar();
+            return;
+        }
+        BuscarProducto({ codigoProductoP: this.Busqueda })
+            .then((result) => {
+                if (result == '') {
+                    this.showToast('Error de búsqueda', 'No existe un producto con el código especificado', 'error');
+                    return;
+                }
+                this.datosWraper = result;
+                this.isTablaLlena = true;
+                //console.log('Resultado --> ' + JSON.stringify(this.datosWraper));
+            })
+            .catch((error) => {
+                console.log('Este es el error' + error);
+                this.Busqueda = '';
+                this.showToast('Error de búsqueda', 'No existe un producto con el código especificado', 'error');
+            });
+    }
+
+    LimpiarTabla(event) {
+        this.Limpiar();
+    }
+
+    CambioCelda(event) {
+        var Temporal = JSON.parse(JSON.stringify(this.datosWraper));
+        CantidadTable = event.detail.draftValues[0].Cantidad;
+        Temporal[0].cantidad = event.detail.draftValues[0].Cantidad;
+        this.datosWraper = JSON.parse(JSON.stringify(Temporal));
+        //console.log('Este es el cambio -->' + JSON.stringify(this.datosWraper));
+    }
+
+    BotonGuardar(event) {
+
+        var Temp = JSON.parse(JSON.stringify(this.datosWraper));
+        var v = parseInt(CantidadTable);
+        if (v == 0) {
+            this.showToast('Error de cantidad', 'Ingrese un valor diferente de cero.', 'error');
+            return;
+        } else if (v > Temp[0].Available) {
+            this.showToast('Error de cantidad', 'La cantidad solicitada debe ser menor o igual a la cantidad disponible.', 'error');
+            return;
+        }
+        Temp[0].QuoteId = this.recordId;
+        this.datosWraper = JSON.parse(JSON.stringify(Temp));
+        GuardarController({ Producto: this.datosWraper[0] })
+            .then((result) => {
+                //console.log('Este es el resultado: ' + JSON.stringify(result));
+                this.showToast('Partida guardada éxitosamente', '', 'success');
+                this.isPopUpActivo = false;
+                this.Limpiar();
+            }).catch((error) => {
+                console.log('Error: ' + JSON.stringify(error));
+            });
+    }
+
+    showToast(titulo, contenido, tipo) {
+        const event = new ShowToastEvent({
+            title: titulo,
+            message: contenido,
+            variant: tipo
+        });
+        this.dispatchEvent(event);
+    }
+}

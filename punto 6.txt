@@ -1,0 +1,73 @@
+BATCH----------------------------------------------------------------------------------------------------------------
+public with sharing class InventarioBatch implements Database.Batchable<sObject>, Database.AllowsCallouts, Database.Stateful{
+    
+    public List<Inventario__c> start(Database.BatchableContext BC){
+        return ObtenerInventario.ObtenerInventarioAPI();
+    }
+
+    public void execute(Database.BatchableContext BC, List<Inventario__c> inventarios){
+        try {
+            upsert inventarios CodigoProd__c;
+        } catch (DMLException error) {
+            System.debug(error.getMessage());
+        }
+    }
+
+    public void finish(Database.BatchableContext BC){
+        
+    }
+}
+SCHEDULABLE-----------------------------------------------------------------------------------------------------
+global with sharing class InventarioSchedule implements Schedulable{
+    global void execute(SchedulableContext SC) {
+        InventarioBatch Inventario = new InventarioBatch();
+        Id BatchId = Database.executeBatch(Inventario);
+    }
+}
+INVENTARIO_MODELO-------------------------------------------------------------------------------------------
+
+public with sharing class ModeloInventario {
+    public Integer statusCode;
+    public Body body;
+
+    public class Body {
+        public List<Inventory> Inventory;
+    }
+
+    public class Inventory {
+        public String name;
+        public String ProductID;
+        public Integer Quan;
+        public Integer BlockedQuan;
+    }
+
+    public static ModeloInventario parse(String json){
+		return (ModeloInventario) System.JSON.deserialize(json, ModeloInventario.class);
+	}
+}
+
+OBTENER_INVENTARIO(API)------------------------------------------------------------------------------------------
+public with sharing class ObtenerInventario {
+    public static List<Inventario__c> ObtenerInventarioAPI(){
+        List<Inventario__c> retorno = new List<Inventario__c>();
+        Http Link = new Http();
+        HttpRequest solicitud = new HttpRequest();
+        solicitud.setEndpoint('https://64bjp0q5wg.execute-api.us-east-2.amazonaws.com/Implement/');
+        solicitud.setMethod('GET');
+        HttpResponse respuesta = Link.send(solicitud);
+        if(respuesta.getStatusCode() == 200){
+            // respuesta.getBody()--> trae el JSON
+            ModeloInventario inventwrapper = ModeloInventario.parse(respuesta.getBody());
+            //fAqui esta la lista de inventarios
+            for(ModeloInventario.Inventory item : inventwrapper.Body.Inventory){
+                Inventario__c Inve = new Inventario__c();
+                Inve.CodigoProd__c = item.ProductID;
+                Inve.Name = item.Name;
+                Inve.Cantidad_dis__c = item.Quan;
+                Inve.Cantidad_apart__c = item.BlockedQuan;
+                retorno.Add(Inve);
+            }
+        }
+        return retorno;
+    }
+}

@@ -1,0 +1,8 @@
+trigger CheckQuoteObjects2 on Quote (before insert, before update, after update) {
+	if(trigger.IsBefore){
+        CheckQuoteObjectHelper.CheckObjects(trigger.new);
+    }
+    if(trigger.IsAfter){
+        CheckQuoteObjectHelper.DiscountOnInventory(trigger.new);
+    }
+}

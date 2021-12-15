@@ -1,0 +1,43 @@
+public class CheckQuoteObjectHelper {
+    
+    //Check
+    public static void CheckObjects(List<Quote> inQuotes){
+        //Take the Quotes (Presupuestos), check if Status == 'Approved'.
+        //Compare the Quote's OpportunityID with the OpportunityLineItem's OpportunityID to find if a product exists.
+        for(Quote newQuote : inQuotes){  
+            if(newQuote.Status == 'Approved'){
+                if([SELECT OpportunityId  FROM OpportunityLineItem WHERE OpportunityId =: newQuote.OpportunityId LIMIT 1].isEmpty()){
+                	newQuote.AddError('No existe un producto');
+                }
+            }
+            
+        }
+    }
+    
+    //Update Inventory
+    public static void DiscountOnInventory(List<Quote> inQuotes){
+        //Get all inventary
+            List<Inventario__c> Inventary = [SELECT CodigoProd__c, Cantidad_dis__c FROM Inventario__c];
+        
+        //For every Quote
+        for(Quote newQuote : inQuotes){  
+            //Only substract if the stage is Approved
+            if(newQuote.Status == 'Approved'){
+                //Get OpportunityLineItems using a matching OpportunityId
+                List<OpportunityLineItem> OpportunityLineItems = [SELECT OpportunityId, ProductCode, Quantity  FROM OpportunityLineItem WHERE OpportunityId =: newQuote.OpportunityId LIMIT 1];
+    
+                //For every product AND every Quote, only if a OpportunityLineItem exists remove one inventary item of that product
+                if(!OpportunityLineItems.isEmpty()){
+                    for(Inventario__c currentInventary : Inventary){
+                        if(currentInventary.CodigoProd__c == OpportunityLineItems[0].ProductCode){
+                            //currentInventary.CodigoProd__c += string.ValueOf(OpportunityLineItems[0].Quantity);
+                            currentInventary.Cantidad_dis__c = currentInventary.Cantidad_dis__c - OpportunityLineItems[0].Quantity;
+                        }
+                    }
+                }
+        	}
+        }
+        update Inventary;
+    }  
+    
+}
