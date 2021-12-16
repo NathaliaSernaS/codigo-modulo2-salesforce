@@ -1,0 +1,12 @@
+@IsTest
+public class GetInventoryBatchTest {
+	@IsTest
+    static void TestBatch(){
+        Test.setMock(HttpCalloutMock.class, new MockHttpResponseGenerator());
+        GetInventoryBatch Inventario = new GetInventoryBatch();
+        Test.startTest();
+        string t = Database.executeBatch(Inventario);
+        Test.StopTest();
+        system.assertEquals(false, string.IsBlank(t));
+    }
+}

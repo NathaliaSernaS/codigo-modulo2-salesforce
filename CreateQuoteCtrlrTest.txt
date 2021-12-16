@@ -1,0 +1,142 @@
+@isTest
+public class CreateQuoteCtrlrTest {
+	@isTest
+    static void SearchProductT(){
+        string codigoProducto = 'CL1010';
+        
+        Product2 Pro = new Product2();
+        Pro.Name = 'PNPBE1';
+        Pro.ProductCode = 'CL1010';
+        insert Pro;
+        //system.debug([SELECT Name, ProductCode FROM Product2]);
+        
+        List<PriceBookEntry> PBE = new List<PriceBookEntry>();
+        Id standardPBID = Test.getStandardPricebookId();
+        
+        PBE.Add(new PriceBookEntry( Product2Id = Pro.Id, 
+                                 UnitPrice = 100.0, IsActive = true, PriceBook2Id = standardPBID));
+        
+        try{
+        insert PBE;
+        }
+        catch(DMLException e){
+             System.Debug(e.getMessage());
+        }
+        List<PriceBookEntry> PBECONSULTA = [SELECT Id, Name, Product2Id, Product2.Name, UnitPrice, Product2.ProductCode
+                            FROM PriceBookEntry
+                            WHERE Product2.ProductCode =: codigoProducto and IsActive= true ];
+        Inventario__c Inv = new Inventario__c();
+        Inv.Cantidad_dis__c = 10; 
+        Inv.CodigoProd__c = 'CL1010';
+        insert Inv;
+        Inventario__c InvC = [SELECT Cantidad_dis__c, CodigoProd__c 
+                                        FROM Inventario__c
+                                        WHERE CodigoProd__c =: codigoProducto];
+        CreateQuoteLineItemCtrlr con = new CreateQuoteLineItemCtrlr();
+       	system.assertEquals(false, CreateQuoteLineItemCtrlr.SearchProduct(codigoProducto).IsEmpty());
+    }
+    
+    @isTest
+    static void SaveTSuccess(){
+		string codigoProducto = 'CL1010';
+        
+        Product2 Pro = new Product2();
+        Pro.Name = 'PNPBE1';
+        Pro.ProductCode = 'CL1010';
+        insert Pro;
+        //system.debug([SELECT Name, ProductCode FROM Product2]);
+        
+        List<PriceBookEntry> PBE = new List<PriceBookEntry>();
+        Id standardPBID = Test.getStandardPricebookId();
+        
+        PBE.Add(new PriceBookEntry( Product2Id = Pro.Id, 
+                                 UnitPrice = 100.0, IsActive = true, PriceBook2Id = standardPBID));
+        
+        try{
+        insert PBE;
+        }
+        catch(DMLException e){
+             System.Debug(e.getMessage());
+        }
+        List<PriceBookEntry> PBECONSULTA = [SELECT Id, Name, Product2Id, Product2.Name, UnitPrice, Product2.ProductCode
+                            FROM PriceBookEntry
+                            WHERE Product2.ProductCode =: codigoProducto and IsActive= true ];
+        Inventario__c Inv = new Inventario__c();
+        Inv.Cantidad_dis__c = 10; 
+        Inv.CodigoProd__c = 'CL1010';
+        insert Inv;
+        Inventario__c InvC = [SELECT Cantidad_dis__c, CodigoProd__c 
+                                        FROM Inventario__c
+                                        WHERE CodigoProd__c =: codigoProducto];
+        
+         Opportunity testOpportunity = new Opportunity(Name='Opportunity Test',
+                                                     CloseDate=Date.newInstance(2021, 2, 17),
+                                                     StageName='Prospecting',
+                                                     Pricebook2Id=standardPBID);
+        insert testOpportunity;
+        
+        Quote testQuote = new Quote(Name='Test Quote',
+                                   OpportunityId=testOpportunity.Id,
+                                   Status='Draft');
+        insert testQuote;
+		CreateQuoteLineItemCtrlr.WrapperProduct t= CreateQuoteLineItemCtrlr.SearchProduct(codigoProducto)[0];
+        t.QuoteId = testQuote.Id;
+        t.quantity = 10;
+        t.ProductId = Pro.Id;
+        
+        system.assertEquals(true, CreateQuoteLineItemCtrlr.Save(t));
+    }
+    
+    @isTest
+    static void SaveTFailure(){
+		string codigoProducto = 'CL1010';
+        
+        Product2 Pro = new Product2();
+        Pro.Name = 'PNPBE1';
+        Pro.ProductCode = 'CL1010';
+        insert Pro;
+        //system.debug([SELECT Name, ProductCode FROM Product2]);
+        
+        List<PriceBookEntry> PBE = new List<PriceBookEntry>();
+        Id standardPBID = Test.getStandardPricebookId();
+        
+        PBE.Add(new PriceBookEntry( Product2Id = Pro.Id, 
+                                 UnitPrice = 100.0, IsActive = true, PriceBook2Id = standardPBID));
+        
+        try{
+        insert PBE;
+        }
+        catch(DMLException e){
+             System.Debug(e.getMessage());
+        }
+        List<PriceBookEntry> PBECONSULTA = [SELECT Id, Name, Product2Id, Product2.Name, UnitPrice, Product2.ProductCode
+                            FROM PriceBookEntry
+                            WHERE Product2.ProductCode =: codigoProducto and IsActive= true ];
+        Inventario__c Inv = new Inventario__c();
+        Inv.Cantidad_dis__c = 10; 
+        Inv.CodigoProd__c = 'CL1010';
+        insert Inv;
+        Inventario__c InvC = [SELECT Cantidad_dis__c, CodigoProd__c 
+                                        FROM Inventario__c
+                                        WHERE CodigoProd__c =: codigoProducto];
+        
+         Opportunity testOpportunity = new Opportunity(Name='Opportunity Test',
+                                                     CloseDate=Date.newInstance(2021, 2, 17),
+                                                     StageName='Prospecting',
+                                                     Pricebook2Id=standardPBID);
+        insert testOpportunity;
+        
+        Quote testQuote = new Quote(Name='Test Quote',
+                                   OpportunityId=testOpportunity.Id,
+                                   Status='Draft');
+        insert testQuote;
+		CreateQuoteLineItemCtrlr.WrapperProduct t = CreateQuoteLineItemCtrlr.SearchProduct(codigoProducto)[0];
+        
+        try{
+            CreateQuoteLineItemCtrlr.Save(t);
+        }catch(Exception e){
+            System.Debug(e.getMessage());
+            System.assertEquals(false,string.isBlank(e.GetMessage()));
+        }
+    }
+}
